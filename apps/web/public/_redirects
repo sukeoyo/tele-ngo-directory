@@ -1,0 +1,2 @@
+/api/*  https://tele-ngo-api.YOUR_SUBDOMAIN.workers.dev/api/:splat  200
+/*      /index.html  200

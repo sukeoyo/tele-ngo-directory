@@ -1,24 +1,47 @@
-import type { SearchResponse, SearchInput } from "@tele/shared";
+import type {
+  CollaborationRequest,
+  ContactInput,
+  MeResponse,
+  NgoProfile,
+  RegisterResponse,
+  SearchInput,
+  SearchResponse,
+  UpdateListingInput,
+} from "@tele/shared";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
+export interface Issue {
+  field: string;
+  message: string;
+}
+
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly issues?: unknown) {
+  constructor(message: string, readonly status: number, readonly issues: Issue[] = []) {
     super(message);
+  }
+  get fieldErrors(): Record<string, string> {
+    return Object.fromEntries(this.issues.map((i) => [i.field, i.message]));
   }
 }
 
-async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-  });
-  const body = await res.json().catch(() => null);
+function normaliseIssues(raw: unknown): Issue[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((i: { field?: string; path?: (string | number)[]; message?: string }) => ({
+    field: i.field ?? (i.path ?? []).join("."),
+    message: i.message ?? "Invalid value",
+  }));
+}
+
+async function json<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const res = await fetch(`${BASE}${path}`, { ...init, headers: { ...headers, ...(init.headers as Record<string, string> | undefined) } });
+  const body: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    const message =
-      (body && typeof body === "object" && "error" in body && String(body.error)) ||
-      "Could not reach the directory. Check your connection and try again.";
-    throw new ApiError(message, res.status, (body as any)?.issues);
+    const obj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const message = typeof obj.error === "string" ? obj.error : "Could not reach the directory. Check your connection and try again.";
+    throw new ApiError(message, res.status, normaliseIssues(obj.issues));
   }
   return body as T;
 }
@@ -35,6 +58,24 @@ export function searchNgos(input: Partial<SearchInput>, signal?: AbortSignal): P
   return json<SearchResponse>(`/api/ngos?${params}`, { signal });
 }
 
-export function registerNgo(payload: unknown) {
-  return json(`/api/register`, { method: "POST", body: JSON.stringify(payload) });
-}
+export const getNgo = (id: string, token?: string) => json<NgoProfile>(`/api/ngos/${id}`, {}, token);
+
+export const registerNgo = (payload: unknown) =>
+  json<RegisterResponse>("/api/register", { method: "POST", body: JSON.stringify(payload) });
+
+export const contactNgo = (id: string, input: ContactInput, token: string) =>
+  json<{ id: string; message: string }>(`/api/ngos/${id}/contact`, { method: "POST", body: JSON.stringify(input) }, token);
+
+export const endorseNgo = (id: string, note: string, token: string) =>
+  json<{ ok: true }>(`/api/ngos/${id}/endorse`, { method: "POST", body: JSON.stringify({ note }) }, token);
+
+export const unendorseNgo = (id: string, token: string) =>
+  json<{ ok: true }>(`/api/ngos/${id}/endorse`, { method: "DELETE" }, token);
+
+export const getMe = (token: string) => json<MeResponse>("/api/me", {}, token);
+
+export const updateMe = (patch: UpdateListingInput, token: string) =>
+  json<unknown>("/api/me", { method: "PATCH", body: JSON.stringify(patch) }, token);
+
+export const updateRequest = (id: string, status: CollaborationRequest["status"], token: string) =>
+  json<{ ok: true }>(`/api/me/requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }, token);

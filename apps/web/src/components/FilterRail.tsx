@@ -14,12 +14,8 @@ interface Props {
 export function FilterRail({ value, onChange }: Props) {
   const toggleSector = (slug: string) => {
     const on = value.sectors.includes(slug);
-    onChange({
-      ...value,
-      sectors: on ? value.sectors.filter((s) => s !== slug) : [...value.sectors, slug],
-    });
+    onChange({ ...value, sectors: on ? value.sectors.filter((s) => s !== slug) : [...value.sectors, slug] });
   };
-
   const active = value.sectors.length > 0 || value.state !== "" || value.verifiedOnly;
 
   return (
@@ -28,11 +24,7 @@ export function FilterRail({ value, onChange }: Props) {
         <h2>
           <label htmlFor="state">Where they work</label>
         </h2>
-        <select
-          id="state"
-          value={value.state}
-          onChange={(e) => onChange({ ...value, state: e.target.value })}
-        >
+        <select id="state" value={value.state} onChange={(e) => onChange({ ...value, state: e.target.value })}>
           <option value="">Anywhere in India</option>
           {STATES.map((s) => (
             <option key={s.code} value={s.code}>
@@ -40,11 +32,7 @@ export function FilterRail({ value, onChange }: Props) {
             </option>
           ))}
         </select>
-        {value.state && (
-          <p className="ngo-meta" style={{ marginTop: 8, marginBottom: 0 }}>
-            Includes organisations that work across all of India.
-          </p>
-        )}
+        {value.state && <p className="hint">Includes organisations that work across all of India.</p>}
       </div>
 
       <div className="rail-group">
@@ -70,15 +58,12 @@ export function FilterRail({ value, onChange }: Props) {
             checked={value.verifiedOnly}
             onChange={(e) => onChange({ ...value, verifiedOnly: e.target.checked })}
           />
-          <span>Only show PAN-verified organisations</span>
+          <span>Only PAN-verified organisations</span>
         </label>
       </div>
 
       {active && (
-        <button
-          className="clear"
-          onClick={() => onChange({ sectors: [], state: "", verifiedOnly: false })}
-        >
+        <button className="clear" onClick={() => onChange({ sectors: [], state: "", verifiedOnly: false })}>
           Clear all filters
         </button>
       )}

@@ -9,14 +9,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "@tele/shared": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@tele/shared": "*"
+    "react-router-dom": "^6.28.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.4",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.5"
   }
 }
