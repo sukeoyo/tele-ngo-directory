@@ -1,0 +1,17 @@
+{
+  "name": "tele-ngo-directory",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "dev:api": "npm run dev --workspace @tele/api",
+    "dev:web": "npm run dev --workspace @tele/web",
+    "build": "npm run build --workspace @tele/web",
+    "seed": "node scripts/seed.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "engines": { "node": ">=20" }
+}
