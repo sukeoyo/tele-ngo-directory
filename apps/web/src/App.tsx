@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { Masthead } from "./components/Masthead.js";
+import { useAuth } from "./lib/auth.js";
 import { DirectoryPage } from "./pages/DirectoryPage.js";
 import { NgoPage } from "./pages/NgoPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
@@ -8,8 +9,14 @@ import { DashboardPage } from "./pages/DashboardPage.js";
 import { NotFoundPage } from "./pages/NotFoundPage.js";
 
 export function App() {
+  const { demo } = useAuth();
   return (
     <>
+      {demo && (
+        <div className="demo-bar" role="note">
+          Demo mode: sample data held in memory, reset when the API restarts. Nothing is emailed.
+        </div>
+      )}
       <Masthead />
       <Routes>
         <Route path="/" element={<DirectoryPage />} />

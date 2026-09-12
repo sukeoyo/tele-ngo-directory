@@ -46,12 +46,20 @@ scripts/             Seed data and tests.
 
 Redis is optional: without it the API still works, with no caching or rate limiting. PAN verification runs in mock mode until you configure a vendor.
 
-## Local setup
+## Try it with no accounts
 
 Requires Node 22+.
 
 ```bash
 npm install
+npm run dev
+```
+
+Open http://localhost:5173. With no Supabase credentials the API serves six sample organisations from memory, PAN checks run against the mock verifier, and sign-in is local: enter `info@example-goonj.org` to act as Goonj, or register a new organisation and sign in with its email. Data resets when the API restarts.
+
+## Local setup with real services
+
+```bash
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 cp apps/web/.env.example apps/web/.env.local
 ```
@@ -72,8 +80,7 @@ Create a Redis database, copy the REST URL and token into `apps/api/.dev.vars`.
 ### 3. Run
 
 ```bash
-npm run dev:api    # http://localhost:8787
-npm run dev:web    # http://localhost:5173
+npm run dev        # API on :8787 and web on :5173
 npm run seed       # six sample organisations
 ```
 

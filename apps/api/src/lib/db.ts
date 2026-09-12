@@ -1,19 +1,20 @@
 import type { Env } from "../env.js";
+import { DbError } from "./errors.js";
+import { demoRequest, isDemo } from "./demo.js";
+
+export { DbError };
 
 // PostgREST over fetch. Uses the service role key, so every handler does its own authorisation.
-
-export class DbError extends Error {
-  constructor(message: string, readonly status: number, readonly detail?: unknown) {
-    super(message);
-  }
-}
+// Without SUPABASE_URL the same calls are served from the in-memory demo store.
 
 async function request(env: Env, path: string, init: RequestInit): Promise<unknown> {
+  if (isDemo(env)) return demoRequest(path, init);
+
   const res = await fetch(`${env.SUPABASE_URL}/rest/v1${path}`, {
     ...init,
     headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+      authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`,
       "content-type": "application/json",
       ...(init.headers ?? {}),
     },

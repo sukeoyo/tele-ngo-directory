@@ -17,7 +17,7 @@ const ENTITY: Record<NgoProfile["entity_type"], string> = {
 
 export function NgoPage() {
   const { id = "" } = useParams();
-  const { token, ready, enabled } = useAuth();
+  const { token, ready } = useAuth();
   const [ngo, setNgo] = useState<NgoProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,7 +126,7 @@ export function NgoPage() {
       </div>
 
       <aside className="profile-side">
-        <ContactCard ngo={ngo} enabled={enabled} />
+        <ContactCard ngo={ngo} />
         <div className="card">
           <h3>Details</h3>
           <dl className="details">
@@ -155,7 +155,7 @@ export function NgoPage() {
   );
 }
 
-function ContactCard({ ngo, enabled }: { ngo: NgoProfile; enabled: boolean }) {
+function ContactCard({ ngo }: { ngo: NgoProfile }) {
   const { token } = useAuth();
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
@@ -202,8 +202,7 @@ function ContactCard({ ngo, enabled }: { ngo: NgoProfile; enabled: boolean }) {
         </dl>
       ) : !ngo.viewer.signed_in ? (
         <p className="muted">
-          Contact details are shared only with PAN-verified organisations.{" "}
-          {enabled ? <Link to="/sign-in">Sign in</Link> : <Link to="/register">Register</Link>} to see them.
+          Contact details are shared only with PAN-verified organisations. <Link to="/sign-in">Sign in</Link> to see them.
         </p>
       ) : !ngo.open_to_contact ? (
         <p className="muted">This organisation is not accepting requests right now.</p>

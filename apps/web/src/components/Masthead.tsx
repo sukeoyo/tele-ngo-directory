@@ -2,7 +2,7 @@ import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "../lib/auth.js";
 
 export function Masthead() {
-  const { enabled, session, signOut } = useAuth();
+  const { session, signOut } = useAuth();
 
   return (
     <header className="masthead">
@@ -18,7 +18,7 @@ export function Masthead() {
             Directory
           </NavLink>
           <NavLink to="/register">List your organisation</NavLink>
-          {enabled && !session && <NavLink to="/sign-in">Sign in</NavLink>}
+          {!session && <NavLink to="/sign-in">Sign in</NavLink>}
           {session && (
             <>
               <NavLink to="/dashboard">Dashboard</NavLink>

@@ -5,7 +5,7 @@ import { Field } from "../components/Field.js";
 import { Notice } from "../components/Notice.js";
 
 export function SignInPage() {
-  const { enabled, session, signIn } = useAuth();
+  const { demo, session, signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -18,7 +18,7 @@ export function SignInPage() {
     setBusy(true);
     setError(null);
     try {
-      await signIn(email.trim().toLowerCase());
+      await signIn(email);
       setSent(true);
     } catch (err) {
       setError((err as Error).message);
@@ -34,9 +34,14 @@ export function SignInPage() {
         Use the contact email you registered your organisation with. We will email you a one-time link, so there is no password.
       </p>
 
-      {!enabled && <Notice tone="warn">Sign-in is not configured on this deployment yet.</Notice>}
+      {demo && (
+        <Notice tone="info">
+          <strong>Demo mode.</strong> No email is sent; whatever address you enter becomes your account. Try{" "}
+          <code>info@example-goonj.org</code> to act as Goonj, or register a new organisation and sign in with its email.
+        </Notice>
+      )}
 
-      {sent ? (
+      {sent && !demo ? (
         <Notice tone="success">
           <strong>Check your inbox.</strong> We sent a sign-in link to {email}. It expires in an hour.
         </Notice>
@@ -46,8 +51,8 @@ export function SignInPage() {
             <input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>
           {error && <Notice tone="error">{error}</Notice>}
-          <button className="btn" type="submit" disabled={busy || !enabled}>
-            {busy ? "Sending…" : "Email me a sign-in link"}
+          <button className="btn" type="submit" disabled={busy}>
+            {busy ? "Signing in…" : demo ? "Sign in" : "Email me a sign-in link"}
           </button>
         </form>
       )}

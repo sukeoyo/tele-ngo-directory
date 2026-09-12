@@ -1,11 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { supabase, authEnabled } from "./supabase.js";
 
+export interface AuthSession {
+  email: string;
+  token: string;
+}
+
 interface AuthState {
-  enabled: boolean;
+  demo: boolean;
   ready: boolean;
-  session: Session | null;
+  session: AuthSession | null;
   token: string | undefined;
   email: string | undefined;
   signIn: (email: string) => Promise<void>;
@@ -13,37 +17,71 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
+const DEMO_KEY = "tele_demo_email";
 
+// Without Supabase configured, sign-in is a local demo: the email you type is the account.
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [ready, setReady] = useState(!authEnabled);
+  const demo = !authEnabled;
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      let saved: string | null = null;
+      try {
+        saved = localStorage.getItem(DEMO_KEY);
+      } catch {
+        /* storage unavailable */
+      }
+      if (saved) setSession({ email: saved, token: `demo:${saved}` });
+      setReady(true);
+      return;
+    }
     void supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      const s = data.session;
+      setSession(s?.user.email ? { email: s.user.email, token: s.access_token } : null);
       setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s?.user.email ? { email: s.user.email, token: s.access_token } : null);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
   const value: AuthState = {
-    enabled: authEnabled,
+    demo,
     ready,
     session,
-    token: session?.access_token,
-    email: session?.user.email,
+    token: session?.token,
+    email: session?.email,
     signIn: async (email) => {
-      if (!supabase) throw new Error("Sign-in is not configured yet.");
+      const normalised = email.trim().toLowerCase();
+      if (!supabase) {
+        try {
+          localStorage.setItem(DEMO_KEY, normalised);
+        } catch {
+          /* storage unavailable */
+        }
+        setSession({ email: normalised, token: `demo:${normalised}` });
+        return;
+      }
       const { error } = await supabase.auth.signInWithOtp({
-        email,
+        email: normalised,
         options: { emailRedirectTo: `${window.location.origin}/dashboard` },
       });
       if (error) throw new Error(error.message);
     },
     signOut: async () => {
-      await supabase?.auth.signOut();
+      if (!supabase) {
+        try {
+          localStorage.removeItem(DEMO_KEY);
+        } catch {
+          /* storage unavailable */
+        }
+        setSession(null);
+        return;
+      }
+      await supabase.auth.signOut();
     },
   };
 

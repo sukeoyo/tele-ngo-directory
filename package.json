@@ -6,9 +6,10 @@
   "scripts": {
     "dev:api": "npm run dev --workspace @tele/api",
     "dev:web": "npm run dev --workspace @tele/web",
+    "dev": "npm run dev:api & npm run dev:web; wait",
     "build": "npm run build --workspace @tele/web",
     "deploy:api": "npm run deploy --workspace @tele/api",
-    "seed": "node scripts/seed.mjs",
+    "seed": "node --experimental-strip-types --no-warnings scripts/seed.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --experimental-strip-types --no-warnings --test scripts/*.test.mjs"
   },

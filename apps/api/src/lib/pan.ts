@@ -93,12 +93,12 @@ export async function verifyPan(env: Env, pan: string, legalName: string): Promi
   }
 }
 
-// Mock: 4th char 'P' → failed, ends in '9' → mismatch, else verified.
+// Mock: 4th char 'P' → failed, last digit '9' → mismatch, else verified.
 function mockVerify(pan: string, legalName: string): PanResult {
   if (pan[3] === "P") {
     return { outcome: "failed", raw: { mock: true, reason: "individual PAN" } };
   }
-  if (pan.endsWith("9")) {
+  if (pan[8] === "9") {
     const registered = `${legalName.toUpperCase()} FOUNDATION`;
     return {
       outcome: "mismatch",

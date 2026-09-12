@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import type { Env } from "../env.js";
 import { rpc, select } from "./db.js";
 import { cacheGet, cacheSet } from "./redis.js";
+import { isDemo } from "./demo.js";
 
 export interface ViewerOrg {
   id: string;
@@ -28,7 +29,7 @@ async function tokenKey(token: string): Promise<string> {
 
 async function fetchUser(env: Env, token: string): Promise<SupabaseUser | null> {
   const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
-    headers: { apikey: env.SUPABASE_ANON_KEY, authorization: `Bearer ${token}` },
+    headers: { apikey: env.SUPABASE_ANON_KEY ?? "", authorization: `Bearer ${token}` },
   });
   if (!res.ok) return null;
   const user = (await res.json()) as SupabaseUser;
@@ -59,7 +60,14 @@ async function loadOrg(env: Env, userId: string, email: string): Promise<ViewerO
 export async function getViewer(c: Context<{ Bindings: Env }>): Promise<Viewer | null> {
   const header = c.req.header("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
-  if (!token || !c.env.SUPABASE_ANON_KEY) return null;
+  if (!token) return null;
+
+  if (isDemo(c.env)) {
+    if (!token.startsWith("demo:")) return null;
+    const email = token.slice(5).toLowerCase();
+    return { user_id: `demo-${email}`, email, org: await loadOrg(c.env, `demo-${email}`, email) };
+  }
+  if (!c.env.SUPABASE_ANON_KEY) return null;
 
   const key = await tokenKey(token);
   const cached = await cacheGet<Viewer>(c.env, key);

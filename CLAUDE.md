@@ -11,7 +11,7 @@ Verified directory of Indian NGOs so organisations can find and contact each oth
 
 ## Commands
 
-`npm run typecheck`, `npm test`, `npm run build`, `npm run dev:api`, `npm run dev:web`, `npm run seed`.
+`npm run dev` (both servers, demo mode with no env files), `npm run typecheck`, `npm test`, `npm run build`, `npm run seed`.
 
 ## Rules that are easy to break
 
@@ -21,5 +21,6 @@ Verified directory of Indian NGOs so organisations can find and contact each oth
 - Sector filter is OR: an org matches if it has any selected sector.
 - Contact details are only returned to a signed-in org whose own PAN is verified. The check lives in `apps/api/src/lib/auth.ts` (`canContact`).
 - Service role key never reaches the browser. Web gets only `VITE_*` variables.
-- Search, filtering and ranking happen in the `search_ngos` SQL function, not in the Worker.
+- Search, filtering and ranking happen in the `search_ngos` SQL function, not in the Worker. `apps/api/src/lib/demo.ts` mirrors it for demo mode; keep the two in step.
+- Demo mode is on whenever `SUPABASE_URL` is unset (API) or `VITE_SUPABASE_URL` is unset (web). Demo tokens are `demo:<email>`.
 - Keep code comments minimal; explain non-obvious decisions in one line at the point of use.

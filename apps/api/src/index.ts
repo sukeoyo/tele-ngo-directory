@@ -7,6 +7,7 @@ import { ngos } from "./routes/ngos.js";
 import { register } from "./routes/register.js";
 import { me } from "./routes/me.js";
 import { DbError } from "./lib/db.js";
+import { isDemo } from "./lib/demo.js";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -21,7 +22,7 @@ app.use("*", async (c, next) => {
   return handler(c, next);
 });
 
-app.get("/health", (c) => c.json({ ok: true }));
+app.get("/health", (c) => c.json({ ok: true, mode: isDemo(c.env) ? "demo" : "live" }));
 
 app.get("/api/taxonomy", (c) => {
   c.header("cache-control", "public, max-age=3600");
