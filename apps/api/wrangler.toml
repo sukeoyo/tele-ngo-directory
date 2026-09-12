@@ -7,13 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 PAN_PROVIDER = "mock"
 ALLOWED_ORIGIN = "http://localhost:5173"
 
-# Secrets are not stored here. Set them with:
-#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
-#   wrangler secret put UPSTASH_REDIS_REST_TOKEN
-#   wrangler secret put PAN_API_KEY
-#
-# For local development put them in apps/api/.dev.vars instead — that file is
-# gitignored and wrangler loads it automatically.
+# Secrets: `wrangler secret put <NAME>` in production, apps/api/.dev.vars locally. See README.
 
 [observability]
 enabled = true

@@ -1,14 +1,16 @@
 {
   "name": "tele-ngo-directory",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
     "dev:api": "npm run dev --workspace @tele/api",
     "dev:web": "npm run dev --workspace @tele/web",
     "build": "npm run build --workspace @tele/web",
+    "deploy:api": "npm run deploy --workspace @tele/api",
     "seed": "node scripts/seed.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --experimental-strip-types --no-warnings --test scripts/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3"

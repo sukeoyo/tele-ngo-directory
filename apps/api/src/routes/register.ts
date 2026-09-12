@@ -9,8 +9,6 @@ import { verifyPan, maskPan } from "../lib/pan.js";
 export const register = new Hono<{ Bindings: Env }>();
 
 register.post("/", async (c) => {
-  // Each PAN check costs real money. Rate limit before we get anywhere near
-  // the provider.
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   const allowed = await rateLimit(c.env, `rl:register:${ip}`, 5, 3600);
   if (!allowed) {
@@ -42,8 +40,6 @@ register.post("/", async (c) => {
   }
   const input = parsed.data;
 
-  // One listing per PAN. Checking first gives a clear message instead of a
-  // unique-constraint violation.
   const existing = await select<{ id: string }[]>(
     c.env,
     "organizations",
@@ -61,9 +57,7 @@ register.post("/", async (c) => {
 
   const pan = await verifyPan(c.env, input.pan, input.legal_name);
 
-  // A name mismatch does not block the listing. Organisations routinely
-  // operate under a short public name while the PAN carries the full legal
-  // one — so it goes live flagged, and a human resolves it.
+  // Name mismatch goes live flagged for human review, never auto-rejected.
   const status =
     pan.outcome === "verified" ? "active" : pan.outcome === "mismatch" ? "flagged" : "pending";
 
@@ -103,8 +97,6 @@ register.post("/", async (c) => {
     false,
   );
 
-  // Store the check itself, not just its conclusion. `reference` is masked —
-  // the full PAN lives in one column on one table and nowhere else.
   await insert(
     c.env,
     "verifications",
@@ -124,8 +116,6 @@ register.post("/", async (c) => {
     false,
   );
 
-  // If they gave a Darpan ID, record it as an unverified claim. We are not
-  // scraping the Darpan portal; the profile links out so anyone can check it.
   if (input.darpan_id) {
     await insert(
       c.env,

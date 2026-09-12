@@ -1,10 +1,6 @@
 import type { Env } from "../env.js";
 
-/**
- * Upstash over its REST API. The TCP Redis client cannot run on Workers, so
- * everything here is plain fetch. All calls fail open: if Redis is down, the
- * site keeps working without caching or rate limiting rather than 500ing.
- */
+// Upstash over REST. Every call fails open so Redis outages never take the site down.
 
 async function command(env: Env, args: (string | number)[]): Promise<unknown> {
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) return null;
@@ -39,12 +35,7 @@ export async function cacheSet(env: Env, key: string, value: unknown, ttlSeconds
   await command(env, ["SET", key, JSON.stringify(value), "EX", ttlSeconds]);
 }
 
-/**
- * Fixed-window rate limit. Coarse, but the point here is protecting the paid
- * PAN verification budget from being drained, not precise fairness.
- *
- * Returns true when the request is allowed.
- */
+// Fixed-window limit. Returns true when allowed.
 export async function rateLimit(
   env: Env,
   key: string,
@@ -52,7 +43,7 @@ export async function rateLimit(
   windowSeconds: number,
 ): Promise<boolean> {
   const count = await command(env, ["INCR", key]);
-  if (count === null) return true; // Redis unavailable — fail open
+  if (count === null) return true;
   if (count === 1) await command(env, ["EXPIRE", key, windowSeconds]);
   return Number(count) <= limit;
 }

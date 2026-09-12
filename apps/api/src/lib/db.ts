@@ -1,16 +1,6 @@
 import type { Env } from "../env.js";
 
-/**
- * Thin PostgREST client.
- *
- * We talk to Supabase over HTTP rather than a TCP Postgres driver because
- * Workers have no TCP sockets. Using fetch directly instead of supabase-js
- * keeps the Worker bundle small and the request path obvious — there is no
- * connection pooling or retry behaviour hiding in a dependency.
- *
- * This uses the service role key and therefore bypasses row level security.
- * Every handler that touches it is responsible for its own authorisation.
- */
+// PostgREST over fetch. Uses the service role key, so every handler does its own authorisation.
 
 export class DbError extends Error {
   constructor(message: string, readonly status: number, readonly detail?: unknown) {
@@ -41,18 +31,14 @@ async function request(env: Env, path: string, init: RequestInit): Promise<unkno
   return body;
 }
 
-/** Calls a Postgres function. This is where search happens. */
 export function rpc<T>(env: Env, fn: string, args: Record<string, unknown>): Promise<T> {
-  return request(env, `/rpc/${fn}`, {
-    method: "POST",
-    body: JSON.stringify(args),
-  }) as Promise<T>;
+  return request(env, `/rpc/${fn}`, { method: "POST", body: JSON.stringify(args) }) as Promise<T>;
 }
 
 export function insert<T>(env: Env, table: string, rows: unknown, returning = true): Promise<T> {
   return request(env, `/${table}`, {
     method: "POST",
-    headers: returning ? { prefer: "return=representation" } : { prefer: "return=minimal" },
+    headers: { prefer: returning ? "return=representation" : "return=minimal" },
     body: JSON.stringify(rows),
   }) as Promise<T>;
 }
@@ -65,6 +51,15 @@ export function update<T>(env: Env, table: string, filter: string, patch: unknow
   }) as Promise<T>;
 }
 
+export function remove(env: Env, table: string, filter: string): Promise<unknown> {
+  return request(env, `/${table}?${filter}`, {
+    method: "DELETE",
+    headers: { prefer: "return=minimal" },
+  });
+}
+
 export function select<T>(env: Env, table: string, query: string): Promise<T> {
   return request(env, `/${table}?${query}`, { method: "GET" }) as Promise<T>;
 }
+
+export const eq = (value: string) => `eq.${encodeURIComponent(value)}`;

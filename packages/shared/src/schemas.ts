@@ -4,14 +4,7 @@ import { STATES } from "./regions.js";
 
 const STATE_CODES = STATES.map((s) => s.code) as [string, ...string[]];
 
-/**
- * PAN format: five letters, four digits, one letter.
- * The fourth character encodes holder type — 'P' is an individual. An NGO's
- * PAN should be 'T' (trust), 'A' (association of persons), 'C' (company) or
- * 'F' (firm). A 'P' here means someone entered a personal PAN, which is the
- * single most common mistake at signup and worth catching before we spend a
- * verification API call on it.
- */
+// 4th char is the holder type; 'P' is an individual, which is the commonest signup mistake.
 export const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const ORG_PAN_HOLDER_TYPES = new Set(["T", "A", "C", "F", "B", "L", "J", "G"]);
 
@@ -104,8 +97,28 @@ export const searchSchema = z.object({
 export type SearchInput = z.infer<typeof searchSchema>;
 
 export const contactSchema = z.object({
-  to_org_id: z.string().uuid(),
-  from_org_id: z.string().uuid(),
-  subject: z.string().trim().min(3).max(140),
+  subject: z.string().trim().min(3, "Add a short subject").max(140),
   message: z.string().trim().min(20, "Say a bit about what you have in mind").max(2000),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;
+
+export const endorseSchema = z.object({
+  note: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const updateListingSchema = z.object({
+  display_name: z.string().trim().min(2).max(120).optional(),
+  mission: z.string().trim().min(40).max(1200).optional(),
+  website: z.string().trim().url("Enter a full URL including https://").optional().or(z.literal("")),
+  contact_person: z.string().trim().max(120).optional(),
+  contact_phone: z.string().trim().max(20).optional(),
+  open_to_contact: z.boolean().optional(),
+  district: z.string().trim().max(120).optional(),
+});
+
+export type UpdateListingInput = z.infer<typeof updateListingSchema>;
+
+export const requestStatusSchema = z.object({
+  status: z.enum(["read", "accepted", "declined"]),
 });
