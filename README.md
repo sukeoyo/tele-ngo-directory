@@ -1,129 +1,142 @@
-# tele-ngo-directory
+# Tele-Upchaar NGO Directory
 
-A directory for NGOs in India to find each other and collaborate.
+A verified directory of Indian NGOs, built so organisations can find each other and collaborate.
 
-Government data about NGOs is reasonably accessible; NGO-to-NGO discovery is not.
-Existing platforms are built for donors (Give.do), for compliance (NGO Darpan), or
-for broadcasting opportunities (NGOBOX). None are built for an organisation working
-on child nutrition in Bihar to find a peer working on the same issue in the next
-district and actually reach them.
+Government data about NGOs is reasonably accessible. NGO-to-NGO discovery is not. Existing platforms serve donors (Give.do), compliance (NGO Darpan) or opportunity listings (NGOBOX). None help an organisation working on child nutrition in Bihar find a peer in the next district and actually reach them.
 
-This is that missing layer: a verified, searchable registry where NGOs register
-themselves, are checked against public records, and can contact each other directly.
+This is that missing layer: NGOs register themselves, are checked against PAN records, and can contact and endorse each other.
 
-## Status
+## What it does
 
-Pilot. Not deployed yet.
+- **Search and filter** by keyword, state and area of work. Verified organisations rank first.
+- **Register** with a five-minute form. The organisation's PAN is verified automatically; a name mismatch flags the listing for review rather than rejecting it.
+- **Sign in** with a one-time email link. The listing registered with that email is linked to the account.
+- **Contact** other organisations. Contact details and collaboration requests are available only to organisations whose own PAN is verified.
+- **Endorse** organisations you have worked with. Endorsements show on the profile and add a "Peer endorsed" badge.
+- **Dashboard** to edit the listing, toggle contact sharing, and accept or decline requests.
 
 ## Architecture
 
-| Layer      | Choice                     | Why                                                      |
-| ---------- | -------------------------- | -------------------------------------------------------- |
-| Edge / CDN | Cloudflare                 | Free tier, India PoPs, DDoS protection                   |
-| Web        | Vite + React → CF Pages    | Static build, nothing to run                             |
-| API        | Cloudflare Workers + Hono  | Free tier; 10ms CPU budget excludes network wait         |
-| Database   | Supabase Postgres          | Bundles Auth + Storage, which we need anyway             |
-| Cache      | Upstash Redis (REST)       | HTTP-based, works from Workers; rate limiting + hot pages |
+| Layer    | Choice                    | Why                                                   |
+| -------- | ------------------------- | ----------------------------------------------------- |
+| Web      | Vite + React → CF Pages   | Static build, nothing to run                          |
+| API      | Cloudflare Workers + Hono | Free tier; CPU budget excludes network wait           |
+| Database | Supabase Postgres         | Bundles Auth and Storage, which we need anyway        |
+| Auth     | Supabase magic link       | No passwords to leak; the Worker verifies the JWT     |
+| Cache    | Upstash Redis (REST)      | Session cache, search cache, rate limits              |
 
-### Why Supabase over Neon
-
-Neon is a better pure-Postgres product, but this project needs three things on day
-one: a database, authentication (NGOs log in to manage their listing), and object
-storage (registration certificates and PAN cards uploaded during verification).
-Supabase ships all three on one free tier. With Neon we would bolt on a separate
-auth provider and separate object storage — more services, more secrets, more to
-break, for no pilot-stage benefit.
-
-### Why the 10ms CPU limit is not a problem
-
-The Workers CPU budget counts JavaScript execution, not time spent waiting on the
-network. A Worker that calls a PAN verification API and waits two seconds for a
-response spends almost no CPU. The limit only bites if we do heavy computation in
-JS — so search filtering and ranking happen in Postgres (see the `search_ngos`
-function in `supabase/migrations/0001_init.sql`), not in the Worker.
-
-## Repository layout
+Search, filtering and ranking happen in the `search_ngos` SQL function so the Worker does almost no compute.
 
 ```
-packages/shared     Types, sector taxonomy, state list, validation schemas.
-                    Imported by both the API and the web app so the sector list
-                    can never drift between the signup form and the database.
-apps/api            Cloudflare Worker. REST API.
-apps/web            Vite + React front end.
-supabase/migrations SQL migrations, applied in filename order.
+packages/shared      Types, sector taxonomy, state list, zod schemas. Shared by API and web.
+apps/api             Cloudflare Worker. REST API.
+apps/web             Vite + React front end.
+supabase/migrations  SQL, applied in filename order.
+scripts/             Seed data and tests.
 ```
+
+## Accounts you need
+
+| Service                 | For                                   | Free tier | Sign up                              |
+| ----------------------- | ------------------------------------- | --------- | ------------------------------------ |
+| Supabase                | Postgres, auth, storage               | Yes       | https://supabase.com                 |
+| Cloudflare              | Workers (API) and Pages (web)         | Yes       | https://dash.cloudflare.com/sign-up  |
+| Upstash                 | Redis for cache and rate limits       | Yes       | https://upstash.com                  |
+| PAN verification vendor | Real PAN checks (optional until launch) | No, ~₹2–3 per check | Cashfree, Signzy, Digio or Karza |
+
+Redis is optional: without it the API still works, with no caching or rate limiting. PAN verification runs in mock mode until you configure a vendor.
 
 ## Local setup
 
-Requires Node 20+.
+Requires Node 22+.
 
 ```bash
 npm install
-cp .env.example .env
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+cp apps/web/.env.example apps/web/.env.local
 ```
 
-### 1. Database
+### 1. Supabase
 
-Create a project at supabase.com, then run the contents of
-`supabase/migrations/0001_init.sql` in the Supabase SQL editor. It is idempotent
-and seeds the sector taxonomy and state list.
+1. Create a project. Under **Project Settings → API** copy the project URL, the `anon` key and the `service_role` key.
+2. In the SQL editor run `supabase/migrations/0001_init.sql`, then `0002_auth_and_requests.sql`. Both are idempotent.
+3. Under **Authentication → URL Configuration** set the site URL to `http://localhost:5173` and add `http://localhost:5173/dashboard` to the redirect list. Add your production URL later.
+4. Under **Authentication → Providers → Email**, keep magic links on and disable "Confirm email" if you want a single-step sign-in.
 
-Copy the project URL and the **service role** key into `.env`. The service role key
-bypasses row-level security and must only ever be used from the Worker, never from
-the browser.
+Put the URL and both keys in `apps/api/.dev.vars`. Put the URL and the **anon key only** in `apps/web/.env.local`.
 
-### 2. Run it
+### 2. Upstash (optional)
+
+Create a Redis database, copy the REST URL and token into `apps/api/.dev.vars`.
+
+### 3. Run
 
 ```bash
-npm run dev:api    # Worker on http://localhost:8787
-npm run dev:web    # Vite on http://localhost:5173
+npm run dev:api    # http://localhost:8787
+npm run dev:web    # http://localhost:5173
+npm run seed       # six sample organisations
 ```
 
-The web app proxies `/api` to the Worker in development, so there is no CORS setup
-to do locally.
+The web dev server proxies `/api` to the Worker.
 
-### 3. Seed some data
+### 4. Check
 
 ```bash
-npm run seed
+npm run typecheck
+npm test
+npm run build
 ```
 
-Inserts a handful of real, publicly-listed NGOs so search returns something while
-you are building. Safe to re-run.
+## Deploying
+
+**API.** `cd apps/api && npx wrangler login`, then set secrets:
+
+```bash
+npx wrangler secret put SUPABASE_URL
+npx wrangler secret put SUPABASE_ANON_KEY
+npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put UPSTASH_REDIS_REST_URL
+npx wrangler secret put UPSTASH_REDIS_REST_TOKEN
+```
+
+Set `ALLOWED_ORIGIN` in `wrangler.toml` to your Pages URL, then `npm run deploy:api`.
+
+**Web.** Connect the repo to Cloudflare Pages. Build command `npm run build`, output directory `apps/web/dist`, root `/`. Add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` as build variables. Edit `apps/web/public/_redirects` so `/api/*` points at your Worker URL.
+
+## Security model
+
+- The service role key lives only in the Worker. The browser gets the anon key, which row-level security restricts to public listing data.
+- The Worker verifies every bearer token with Supabase Auth and resolves the caller's organisation server-side. Clients never send an org ID.
+- Contact details are returned only when the viewer's organisation has a verified PAN and the listed organisation has opted in.
+- Full PANs are stored in one column on one table. Verification records hold a masked reference.
+- Registration is rate limited per IP, collaboration requests per organisation.
+- `.gitignore` excludes every `.env*` and `.dev.vars*` file except the `.example` templates. Never commit real keys.
 
 ## Verification model
 
-We do not attempt full financial due diligence. That is what sinks projects like
-this. Instead, verification is tiered, and every check is stored as its own row in
-`verifications` — never a single `is_verified` boolean on the organisation — so the
-interface can show what was actually checked rather than one opaque badge.
+Tiered, and every check is its own row in `verifications`, so the UI can say what was checked instead of showing one badge.
 
-| Tier | Check                                   | Cost to us         |
-| ---- | --------------------------------------- | ------------------ |
-| 0    | Documents uploaded, nothing verified    | Free               |
-| 1    | Org PAN verified via KYC API            | ~₹2–3 per check    |
-| 1    | 12A / 80G status, Darpan ID present     | Manual / linked    |
-| 2    | Peer endorsement from a verified org    | Free, scales with us |
-| 3    | Financials, site visit                  | Staff time, later  |
+| Tier | Check                                | Cost                   |
+| ---- | ------------------------------------ | ---------------------- |
+| 1    | Organisation PAN via KYC API         | ~₹2–3 per check        |
+| 1    | Darpan ID, self-declared with link   | Free                   |
+| 2    | Peer endorsement from a verified org | Free, scales with use  |
+| 3    | 12A/80G status, financials, visits   | Staff time, later      |
 
-Tier 1 PAN verification is the guardrail at signup. Tier 2 peer endorsement is the
-growth engine, and is the signal that actually matters for collaboration: an NGO
-vouching for a peer it has worked with says more about partnership fitness than any
-donor-facing seal.
-
-**A name mismatch on PAN is a flag for review, not an auto-reject.** Organisations
-frequently operate under a short public name while their PAN carries the full legal
-name.
+A PAN name mismatch is a flag for review, not a rejection. Organisations routinely operate under a short public name while the PAN carries the full legal name.
 
 ## Sector taxonomy
 
-Fixed multi-select list, not free text, with an "Other" escape hatch that captures
-free text for manual review. This mirrors NGO Darpan (~40 tags) and Give.do (~25),
-trimmed to 24. Almost every NGO works across many sectors at once, so sectors are a
-many-to-many join, not a single category column.
+Fixed multi-select list of 25 tags plus "Other", trimmed from NGO Darpan's ~40. "Other" captures free text; when several organisations type the same thing, promote it to a tag in a migration.
 
-When several organisations type the same thing into "Other", promote it to a real
-tag in a migration. The taxonomy should grow from observed data, not guesses.
+The sector filter is OR: selecting Education and Water returns organisations doing either. Organisations tag broadly, so AND returns almost nothing.
+
+## Not built yet
+
+- Document upload (registration certificate, 12A/80G) to Supabase Storage.
+- Email notification when a collaboration request arrives. Requests currently appear in the dashboard only.
+- Admin review queue for flagged and pending listings.
+- 12A/80G lookup against the income tax portal.
 
 ## License
 
